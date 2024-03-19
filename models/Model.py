@@ -20,7 +20,7 @@ from pyBKT.util import crossvalidate, data_helper, check_data, metrics
 pd.options.display.float_format = '{:,.5f}'.format
 
 class Model:
-    MODELS_BKT = ['multilearn', 'multiprior', 'multipair', 'multigs', 'multigs_cognitive_level']
+    MODELS_BKT = ['multilearn', 'multiprior', 'multipair', 'multigs', 'cognitive_label']
     MODEL_ARGS = ['parallel', 'num_fits', 'seed', 'defaults'] + MODELS_BKT
     FIT_ARGS = ['skills', 'num_fits', 'defaults', 'fixed', 'parallel', 'forgets', 'preload'] + MODELS_BKT
     CV_ARGS = FIT_ARGS + ['folds', 'seed']
@@ -41,7 +41,7 @@ class Model:
                     'multiprior': 'correct',
                     'multipair': 'problem_id',
                     'multigs': 'template_id',
-                    'multigs_cognitive_level': 'template_id',
+                    'cognitive_label': 'template_id',
                     'folds': 'template_id'}
     INITIALIZABLE_PARAMS = ['prior', 'learns', 'guesses', 'slips', 'forgets']
 
@@ -378,10 +378,10 @@ class Model:
     def _data_helper(self, data_path, data, defaults, skills, model_type, gs_ref = None, resource_ref = None, return_df = False, folds = False):
         """ Processes data given defaults, skills, and the model type. """
         if isinstance(data_path, str):
-            data_p = data_helper.convert_data(data_path, skills, defaults = defaults, model_type = model_type, 
+            data_p= data_helper.convert_data(data_path, skills, defaults = defaults, model_type = model_type,
                                               gs_refs = gs_ref, resource_refs = resource_ref, return_df = return_df, folds = folds)
         elif isinstance(data, pd.DataFrame):
-            data_p = data_helper.convert_data(data, skills, defaults = defaults, model_type = model_type,
+            data_p= data_helper.convert_data(data, skills, defaults = defaults, model_type = model_type,
                                                 gs_refs = gs_ref, resource_refs = resource_ref, return_df = return_df, folds = folds)
         if not return_df:
             for d in data_p.values():
@@ -389,6 +389,8 @@ class Model:
         else:
             for d in data_p[0].values():
                 check_data.check_data(d)
+        # if cognitive_label is not None:
+        #     data_p['cognitive_label'] = cognitive_label
         return data_p
 
     def _fit(self, data, skill, forgets, preload = False):
@@ -404,7 +406,11 @@ class Model:
         best_model = None
 
         for i in range(num_fit_initializations):
-            fitmodel = random_model_uni.random_model_uni(num_learns, num_gs, cognitive_level=None)
+            if "cognitive_label" in data and data["cognitive_label"] is not None:
+                cognitive_label = data["cognitive_label"]
+            else:
+                cognitive_label = None
+            fitmodel = random_model_uni.random_model_uni(num_learns, num_gs, cognitive_label=cognitive_label)
             optional_args = {'fixed': {}}
             if forgets:
                 fitmodel["forgets"] = np.random.uniform(size = fitmodel["forgets"].shape)

@@ -18,45 +18,44 @@ def accuracy(flat_true_values, pred_values):
             correct += 1
     return correct/len([x for x in flat_true_values if (x == 0 or x == 1)])
 
-
-def doa(y_true, y_edge_pred):
-    doa = []
-    doa_support = 0
-    z_support = 0
-    for knowledge_label, edge_pred in tqdm(zip(y_true, y_edge_pred), "doa metrics"):
-        _doa = 0
-        _z = 0
-        for label, pred in zip(np.nditer(knowledge_label), np.nditer(edge_pred)):
-            if sum(label) == len(label) or sum(label) == 0:
-                continue
-            pos_idx = []
-            neg_idx = []
-            for i, _label in enumerate(label):
-                if _label == 1:
-                    pos_idx.append(i)
-                else:
-                    neg_idx.append(i)
-
-            pos_pred = pred[pos_idx]
-            neg_pred = pred[neg_idx]
-            invalid = 0
-            for _pos_pred, _neg_pred in zip(pos_pred, neg_pred):
-                _new_pos_pred = np.array([x for x in _pos_pred if x != 0])
-                _new_neg_pred = np.array([x for x in _neg_pred if x != 0])
-
-                for _p_pred in _new_pos_pred:
-                    _doa += len(_new_neg_pred[_new_neg_pred < _p_pred])
-                    invalid += len(_new_neg_pred[_new_neg_pred == _p_pred])
-                _z += (len(_new_pos_pred) * len(_new_neg_pred)) - invalid
-        if _z > 0:
-            doa.append(_doa / _z)
-            z_support += _z
-            doa_support += 1
-    return {
-        "doa": np.mean(doa),
-        "doa_know_support": doa_support,
-        "doa_z_support": z_support,
-    }
+# def doa(y_true, y_edge_pred):
+#     doa = []
+#     doa_support = 0
+#     z_support = 0
+#     for knowledge_label, edge_pred in tqdm(zip(y_true, y_edge_pred), "doa metrics"):
+#         _doa = 0
+#         _z = 0
+#         for label, pred in zip(np.nditer(knowledge_label), np.nditer(edge_pred)):
+#             if sum(label) == len(label) or sum(label) == 0:
+#                 continue
+#             pos_idx = []
+#             neg_idx = []
+#             for i, _label in enumerate(label):
+#                 if _label == 1:
+#                     pos_idx.append(i)
+#                 else:
+#                     neg_idx.append(i)
+#
+#             pos_pred = pred[pos_idx]
+#             neg_pred = pred[neg_idx]
+#             invalid = 0
+#             for _pos_pred, _neg_pred in zip(pos_pred, neg_pred):
+#                 _new_pos_pred = np.array([x for x in _pos_pred if x != 0])
+#                 _new_neg_pred = np.array([x for x in _neg_pred if x != 0])
+#
+#                 for _p_pred in _new_pos_pred:
+#                     _doa += len(_new_neg_pred[_new_neg_pred < _p_pred])
+#                     invalid += len(_new_neg_pred[_new_neg_pred == _p_pred])
+#                 _z += (len(_new_pos_pred) * len(_new_neg_pred)) - invalid
+#         if _z > 0:
+#             doa.append(_doa / _z)
+#             z_support += _z
+#             doa_support += 1
+#     return {
+#         "doa": np.mean(doa),
+#         "doa_know_support": doa_support,
+#         "doa_z_support": z_support,
+#     }
 def auc(flat_true_values, pred_values):
     error_check(flat_true_values, pred_values)
     # multiprior handling, remove phantom nondata
@@ -103,5 +102,5 @@ def fetch_supported_metrics():
     return supported_metrics
 
 
-SUPPORTED_METRICS = {'accuracy': accuracy, 'auc': auc, 'rmse': rmse,'doa': doa}
+SUPPORTED_METRICS = {'accuracy': accuracy, 'auc': auc, 'rmse': rmse}
 SUPPORTED_METRICS.update(fetch_supported_metrics())

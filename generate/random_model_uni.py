@@ -2,22 +2,10 @@ import random
 import numpy as np
 from pyBKT.util import dirrnd
 
-def random_model_uni(num_resources=None, num_subparts=None, trans_prior=None, given_notknow_prior=None, given_know_prior=None, pi_0_prior=None, cognitive_level=None):
-
+def random_model_uni(num_resources=None, num_subparts=None, trans_prior=None, given_notknow_prior=None, given_know_prior=None, pi_0_prior=None, cognitive_label=None):
+    epsilon = 0.01  # 定义一个小的正数，例如 1% 或者 0.01
     if num_resources is None: num_resources = 1
     if num_subparts is None: num_subparts = 1
-
-    if cognitive_level is not None:
-        if cognitive_level < 1 or cognitive_level > 6:
-            raise ValueError("Cognitive level must be between 1 and 6")
-
-        # Map cognitive level to guesses and slips values
-        max_guess = 0.40
-        max_slip = 0.30
-        min_guess = 0.10
-        min_slip = 0.05
-        guess_value = max_guess - (cognitive_level - 1) * (max_guess - min_guess) / 5
-        slip_value = max_slip - (cognitive_level - 1) * (max_slip - min_slip) / 5
 
     if trans_prior is None:
         trans_prior = np.tile(np.transpose([[20, 4], [1, 20]]), (num_resources, 1)).reshape((num_resources, 2, 2))
@@ -44,17 +32,21 @@ def random_model_uni(num_resources=None, num_subparts=None, trans_prior=None, gi
     modelstruct['learns'] = As[:, 1, 0]
     modelstruct['forgets'] = As[:, 0, 1]
 
-    # given_notknow[1, :] = np.random.rand(num_subparts) * 0.40
-    # modelstruct['guesses'] = given_notknow[1, :]
-    # given_know[0, :] = np.random.rand(num_subparts) * 0.30
-    # modelstruct['slips'] = given_know[0, :]
-
-    if cognitive_level is None:
+    if cognitive_label is None:
         given_notknow[1, :] = np.random.rand(num_subparts) * 0.40
         given_know[0, :] = np.random.rand(num_subparts) * 0.30
     else:
-        given_notknow[1, :] = np.full(num_subparts, guess_value)
-        given_know[0, :] = np.full(num_subparts, slip_value)
+        cognitive_labels = np.array(list(cognitive_label.values()))
+        if np.any(cognitive_labels < 1) or np.any(cognitive_labels > 6):
+            raise ValueError("All cognitive levels must be between 1 and 6")
+
+        # 为每个题目计算 guess 和 slip 参数
+        for i in range(num_subparts):
+            guess_factor = 1 - ((cognitive_labels[i] - 1) / 5) * (1 - 0.2)
+            # slip_factor = ((cognitive_labels[i] - 1) / (6 - 1)) * (1 - epsilon) + epsilon
+            slip_factor = 1 - guess_factor
+            given_notknow[1, i] = np.random.rand() * guess_factor * 0.4
+            given_know[0, i] = np.random.rand() * slip_factor * 0.3
 
     modelstruct['guesses'] = given_notknow[1, :]
     modelstruct['slips'] = given_know[0, :]

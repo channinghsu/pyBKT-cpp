@@ -15,9 +15,9 @@ import requests
 
 def convert_data(url, skill_name, defaults=None, model_type=None, gs_refs=None, resource_refs=None, return_df = False, folds=False):
     if model_type:
-        multilearn, multiprior, multipair, multigs, multigs_cognitive_level = model_type
+        multilearn, multiprior, multipair, multigs, cognitive_label = model_type
     else:
-        multilearn, multiprior, multipair, multigs, multigs_cognitive_level = [False] * 5
+        multilearn, multiprior, multipair, multigs, cognitive_label = [False] * 5
     pd.set_option('mode.chained_assignment', None)
     df = None
 
@@ -58,7 +58,6 @@ def convert_data(url, skill_name, defaults=None, model_type=None, gs_refs=None, 
                  'multiprior': 'correct',
                  'multipair': 'template_id',
                  'multigs': 'template_id',
-                 'multigs_cognitive_level': 'template_id',
                  'folds': 'user_id',
                  }
 
@@ -71,7 +70,6 @@ def convert_data(url, skill_name, defaults=None, model_type=None, gs_refs=None, 
                 'multiprior': 'Correct First Attempt',
                 'multipair': 'Problem Name',
                 'multigs': 'Problem Name',
-                'multigs_cognitive_level': 'Problem Name',
                 'folds': 'Anon Student Id',
                                  }
 
@@ -126,6 +124,7 @@ def convert_data(url, skill_name, defaults=None, model_type=None, gs_refs=None, 
         df[defaults["correct"]] = df[defaults["correct"]].apply(int)
     except:
         raise ValueError("Invalid Data In Specified Corrects Column")
+
 
     datas = {}
     skill_name = '^(' + skill_name + ')$'
@@ -253,6 +252,41 @@ def convert_data(url, skill_name, defaults=None, model_type=None, gs_refs=None, 
             resources=np.array([1]*len(data))
 
 
+
+        if cognitive_label:
+            # Check if "cognitive_label" is in defaults
+            if "cognitive_label" not in defaults:
+                raise KeyError("cognitive_label default column not specified")
+            elif defaults["cognitive_label"] not in df3.columns:
+                raise KeyError("specified cognitive_label default column not in data")
+
+            all_guess = df3[defaults["multigs"]].unique()
+            all_guess = np.sort(all_guess)
+            # map each new guess/slip case to a row [0, # total]
+            if gs_ref is None:
+                gs_ref=dict(zip(all_guess,range(len(df[defaults["multigs"]].unique()))))
+            else:
+                for i in all_guess:
+                    if i not in gs_ref:
+                        raise ValueError("Guess rate", i, "not previously fitted")
+            data_ref = np.array(df3[defaults["multigs"]].apply(lambda x: gs_ref[x]))
+
+            # make data n-dimensional, fill in corresponding row and make other non-row entries 0
+            data_temp = np.zeros((len(df3[defaults["multigs"]].unique()), len(df3)))
+            for i in range(len(data_temp[0])):
+                data_temp[data_ref[i]][i] = data[i]
+            Data["data"]=np.asarray(data_temp,dtype='int32')
+            problem_ids = df3['problem_id']
+            cognitive_labels = df3['cognitive_label']
+
+            # 创建一个字典，将 'problem_id' 映射到 'cognitive_label'
+            problem_id_to_cognitive_label = dict(zip(problem_ids, cognitive_labels))
+            Data["cognitive_label"] = problem_id_to_cognitive_label
+        else:
+            if not multigs:
+                data = [data]
+                Data["data"]=np.asarray(data,dtype='int32')
+
         # multigs handling, make data n-dimensional where n is number of g/s types
         if multigs:
             if "multigs" not in defaults:
@@ -277,42 +311,15 @@ def convert_data(url, skill_name, defaults=None, model_type=None, gs_refs=None, 
                 data_temp[data_ref[i]][i] = data[i]
             Data["data"]=np.asarray(data_temp,dtype='int32')
         else:
-            if not multigs_cognitive_level:
+            if not cognitive_label:
                 data = [data]
                 Data["data"]=np.asarray(data,dtype='int32')
-
-        if multigs_cognitive_level:
-            if "multigs_cognitive_level" not in defaults:
-                raise KeyError("multigs_cognitive_level default column not specified")
-            elif defaults["multigs_cognitive_level"] not in df3.columns:
-                raise KeyError("specified multigs_cognitive_level default column not in data")
-
-            all_cognitive_levels = df3[defaults["multigs_cognitive_level"]].unique()
-            all_cognitive_levels = np.sort(all_cognitive_levels)
-            # map each new guess/slip case to a row [0, # total]
-            if gs_ref is None:
-                gs_ref = dict(zip(all_cognitive_levels, range(len(df[defaults["multigs_cognitive_level"]].unique()))))
-            else:
-                for i in all_cognitive_levels:
-                    if i not in gs_ref:
-                        raise ValueError("Guess rate", i, "not previously fitted")
-            data_ref = np.array(df3[defaults["multigs_cognitive_level"]].apply(lambda x: gs_ref[x]))
-
-            # make data n-dimensional, fill in corresponding row and make other non-row entries 0
-            data_temp = np.zeros((len(df3[defaults["multigs_cognitive_level"]].unique()), len(df3)))
-            for i in range(len(data_temp[0])):
-                data_temp[data_ref[i]][i] = data[i]
-            Data["data"] = np.asarray(data_temp, dtype='int32')
-        else:
-            if not multigs:
-                data = [data]
-                Data["data"] = np.asarray(data, dtype='int32')
 
         # for when no resource and/or guess column is selected
         if not multilearn and not multipair and not multiprior:
             resource_ref = {}
             resource_ref["default"]=1
-        if not multigs:
+        if not multigs and not cognitive_label:
             gs_ref = {}
             gs_ref["default"]=1
 
