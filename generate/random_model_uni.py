@@ -42,11 +42,13 @@ def random_model_uni(num_resources=None, num_subparts=None, trans_prior=None, gi
 
         # 为每个题目计算 guess 和 slip 参数
         for i in range(num_subparts):
-            guess_factor = 1 - ((cognitive_labels[i] - 1) / 5) * (1 - 0.2)
-            # slip_factor = ((cognitive_labels[i] - 1) / (6 - 1)) * (1 - epsilon) + epsilon
-            slip_factor = 1 - guess_factor
-            given_notknow[1, i] = np.random.rand() * guess_factor * 0.4
-            given_know[0, i] = np.random.rand() * slip_factor * 0.3
+            # 计算 guess_factor 和 slip_factor
+            guess_factor = np.maximum(0.01, np.minimum(0.4, 0.4 - ((cognitive_labels[i] - 1) / 5) * 0.4))
+            slip_factor = np.maximum(0.01, np.minimum(0.3, 0.1 + ((cognitive_labels[i] - 1) / 5) * 0.2))
+
+            # 将计算出的因子值赋给 given_notknow 和 given_know 的相应位置
+            given_notknow[1, i] = guess_factor
+            given_know[0, i] = slip_factor
 
     modelstruct['guesses'] = given_notknow[1, :]
     modelstruct['slips'] = given_know[0, :]
